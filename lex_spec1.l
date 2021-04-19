@@ -22,7 +22,7 @@ comment_end  \*\/
 \/\/(.*) {}; 
 {comment_start}(.|[\n])*{comment_end} {};
 ({digit})+	{yylval.number=atoi(yytext); return T_NUM;}
-([0-9]*[.])?[0-9]+  {yylval.number=atof(yytext);return T_NUM;}
+([0-9]*[.])?[0-9]+  {yylval.number=atof(yytext); return T_NUM;}
 "import"  {return T_IMPORT;}
 "class"	{return T_CLASS;}
 "public" {return T_PUBLIC;}

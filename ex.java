@@ -5,8 +5,8 @@ public class ex
 	{ 
 		int a=1;
 		int b=12*4/2+1;
-			
-
+		float c=10.0;
+		char d='b';	
 		for(int i=0;i<5;i=i+1)
 		{
 			int a=5+3*3/2;	

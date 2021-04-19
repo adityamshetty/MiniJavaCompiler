@@ -15,15 +15,15 @@ struct double_list
 	union Value 
 	{
     	int val;
-    	char vale;
+    	char* vale;
     	float valu;
   	}value;
 };
 typedef struct double_list d_list;
 d_list* head=NULL;
 
-int fill(char* name,float value,int type);
-int  fill_char(char* name,char value,int type);
+int fill(char* name,float value,int type,char* type1);
+int  fill_char(char* name,char* value,int type);
 int  fill_float(char* name,float value,int type);
 d_list* lookupsymb(char *id);
 void display();
@@ -46,6 +46,8 @@ typedef struct node
     char* token;
     char* tmp; //Name of tmp var
     float value;
+    char* str_value;
+    char* type1;
     d_list* ptr;
 }node; 
 
@@ -53,9 +55,10 @@ union leafval
 {
 	char val1[20];
 	float val2;
+	char val3[20];
 }; 
 node* initialize_node();
-node* leaf(int type,union leafval f);
+node* leaf(int type,union leafval f,int a);
 node* new_node(char* token,node* left,node* right);
 void preorder(node* root);
 
@@ -81,13 +84,15 @@ void preorder(node* root);
 %type<tree> stmts
 %type<tree> var_decl
 %type<tree> iter_stmts
+%type<string> type_specifier
 %token <number> T_OParen
 %token T_CParen
 //%token <num> T_fConst
 %type<tree> T_expr
 %token T_PUBLIC T_STATIC T_VOID T_STRING T_ARGS
 %token  T_WHILE T_MAIN  T_DO T_FOR T_IF T_ELSE
-%token T_INT  T_CLASS  T_IMPORT T_FLOAT T_CHAR 
+%token T_INT  T_CLASS  T_IMPORT T_FLOAT T_CHAR
+%type<string> T_INT T_FLOAT T_CHAR 
 %token T_CHARV
 %type<string> T_CHARV
 %token T_U_INCR T_U_DECR
@@ -112,7 +117,7 @@ class_def:
 modifier Class_head
 ;
 Class_head:
-T_CLASS T_ID T_OParen main_stmt T_CParen   {/*display()*/;}
+T_CLASS T_ID T_OParen main_stmt T_CParen   {display();}
 ;
 modifier:
 T_PUBLIC  
@@ -133,7 +138,7 @@ stmt:
 				{
 					union leafval f;
 					strcpy(f.val1,$1); 					
-					$$=new_node("EQUALS",leaf(2,f),$3);
+					$$=new_node("EQUALS",leaf(2,f,1),$3);
 					//Updating Symbol Table
 					d_list* t=lookupsymb($1);	
 					t->value.val=$3->value;			
@@ -318,21 +323,23 @@ T_expr:
 			
 		     }
    | T_Const {	$$=$1; /*printf("%d\n",$$->type);*/ /*sprintf($$->tmp, "t%d", tempno++);if($$->type==1) printf("%s=%d\n",$$->tmp,(int)$1->value);*/}
+   
 ;
 
 T_Const:
 //| T_NUM { $$=$1;}
-T_NUM {union leafval f;f.val2=$1; $$=leaf(0,f);}
+T_NUM {union leafval f;f.val2=$1; $$=leaf(0,f,1);}
 | T_ID {
 		if(lookupsymb($1)!=NULL)
 		 {
 			union leafval f;
 			strcpy(f.val1,$1); 
-			$$=leaf(2,f);
+			$$=leaf(2,f,1);
 			d_list* t=lookupsymb($1);
 			$$->value=t->value.val;
 		 }
 	}
+|  T_CHARV  {union leafval f;strcmp(f.val3,$1); $$=leaf(0,f,0); }
 ;
 
 cond:
@@ -486,14 +493,21 @@ var_decl:
 */
 var_decl:
 	//T_INT T_ID ';' { fill($2,0,0);}
-	T_INT T_ID T_ASSG T_expr ';' {  if($4->type==0)
-						printf("%s=%d\n",$2,(int)$4->value);	
-					else if($4->type==1)					
-						printf("%s=%s\n",$2,$4->tmp);
-					fill($2,$4->value,0);
-					union leafval f;
-					strcpy(f.val1,$2); 					
-					$$=new_node("EQUALS",leaf(2,f),$4);				
+	type_specifier T_ID T_ASSG T_expr ';' {  if($4->type==0)
+							printf("%s=%d\n",$2,(int)$4->value);	
+						else if($4->type==1)					
+							printf("%s=%s\n",$2,$4->tmp);
+						if(strcmp($1,"integer")==0)
+							fill($2,$4->value,0,$1);
+						if(strcmp($1,"float")==0)
+							fill($2,$4->value,1,$1);
+						if(strcmp($1,"char")==0)
+							{char* b=$4->str_value;
+							fill_char($2,b,2);
+							}
+						union leafval f;
+						strcpy(f.val1,$2); 					
+						$$=new_node("EQUALS",leaf(2,f,1),$4);				
 				       }
 	//|T_FLOAT T_ID ';' { fill($2,0.0,1);}
 	//|T_FLOAT T_ID T_ASSG T_expr ';' {fill($2,$4,1);}
@@ -501,6 +515,11 @@ var_decl:
 	//|T_CHAR T_ID T_ASSG T_CHARV ';' {fill_char($2,$4[1],2);}
         //| T_Const T_S_DIV T_Const  {$$=$1/$3;}
        ;
+
+type_specifier:
+T_INT {$$="integer";}
+|T_FLOAT {$$="float";}
+|T_CHAR {$$="char";}
 
 
 
@@ -530,7 +549,7 @@ int update(char*name,float value){
 
 }
 
-int  fill(char* name,float value,int type){
+int  fill(char* name,float value,int type,char* type1){
   d_list*node=head;
   //printf("%d\n",yylineno);
   while(node!=NULL){
@@ -549,16 +568,19 @@ int  fill(char* name,float value,int type){
   newnode->type=type;
   newnode->scope=n.s;
   newnode->l=yylineno;
-  if(type==0)//Integer
+  
+  if(strcmp(type1,"integer")==0)//Integer
   	newnode->value.val=(int)value;
-  if(type==1)//Float
-  	newnode->value.valu=value;
+	
+  if(strcmp(type1,"float")==0)//Float
+  	newnode->value.valu=(float)value;
+	
   newnode->next=head;
   head=newnode;
   return 1;
 }
 
-int  fill_char(char* name,char value,int type){
+int  fill_char(char* name,char* value,int type){
   d_list*node=head;
   //printf("%d\n",yylineno);
   while(node!=NULL){
@@ -577,6 +599,9 @@ int  fill_char(char* name,char value,int type){
   newnode->type=type;
   newnode->scope=n.s;
   newnode->l=yylineno;
+  //if(type==0)
+  //{ strcpy(newnode->value.vale,value);
+  //}
   if(type==2)//Integer
   {
   	newnode->value.vale=value;
@@ -596,16 +621,16 @@ int  fill_char(char* name,char value,int type){
 void display(){
   d_list* node;
   node=head;
-  printf("\nLINE NUMBER  VARIABLE NAME \t   TYPE \t VALUE \t SCOPE\n");  
+  printf("\nLINE NUMBER  VARIABLE NAME \t   TYPE \t STORAGE \t VALUE \t SCOPE\n");  
   while(node!=NULL)
   {
     if(node->type==0)
-    printf("%d            %s           \t   %s \t\t  %d \t %d\n",node->l,node->name,"int",node->value.val,node->scope);
+    printf("%d            %s           \t   %s \t\t  %d\t\t  %d \t %d\n",node->l,node->name,"int",4,node->value.val,node->scope);
     //printf("var-name\t%s\tvalue\t%d\tint\tline %d\n",node->name,node->value.val,node->l);
     if(node->type==1)
-    printf("%d            %s           \t   %s \t  %0.2f \t %d\n",node->l,node->name,"float",node->value.valu,node->scope);
+    printf("%d            %s           \t   %s \t  %d\t\t  %0.2f  %d\n",node->l,node->name,"float",4,node->value.valu,node->scope);
     if(node->type==2)
-    printf("%d            %s           \t   %s \t  %c \t %d\n",node->l,node->name,"char",node->value.vale,node->scope);
+    printf("%d            %s           \t   %s \t  %d\t\t  %s \t %d\n",node->l,node->name,"char",1,node->value.vale,node->scope);
     node=node->next;
   }
   
@@ -649,12 +674,17 @@ node* initialize_node()
     return tmp;
 }
 
-node* leaf(int type,union leafval f)
+node* leaf(int type,union leafval f,int a)
 {
     node* tmp=initialize_node();
-    if(type==0)
+    if(type==0 && a==1)
     {
 	tmp->value=f.val2;
+    	tmp->type=0;//leaf nodes
+    }
+    if(type==0 && a==0)
+    {
+	tmp->str_value=f.val3;
     	tmp->type=0;//leaf nodes
     }
     if(type==2)
