@@ -1,0 +1,21 @@
+a=1
+t0=48
+t1=t0/2
+t2=t1+1
+b=t2
+i=0
+t3=1
+t4=1
+t5=not t3
+if t5 goto L1
+L0 :t5=9
+t6=t5/2
+t7=5+t6
+a=t7
+Variable already declared at line 12
+goto L0
+L1 :
+LINE NUMBER  VARIABLE NAME 	   TYPE 	 VALUE 	 SCOPE
+10            i           	   int 		  0 	 2
+7            b           	   int 		  25 	 2
+6            a           	   int 		  1 	 2
