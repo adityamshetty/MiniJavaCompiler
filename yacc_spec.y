@@ -49,6 +49,7 @@ typedef struct node
     char* str_value;
     char* type1;
     d_list* ptr;
+    int a;
 }node; 
 
 union leafval
@@ -96,7 +97,7 @@ void preorder(node* root);
 %token T_CHARV
 %type<string> T_CHARV
 %token T_U_INCR T_U_DECR
-%token	T_S_PLUSEQ T_S_MINUSEQ T_S_MULTEQ T_S_DIVEQ TRUE FALSE T_S_DIV
+%token	T_S_PLUSEQ T_S_MINUSEQ T_S_MULTEQ T_S_DIVEQ TRUE FALSE T_S_DIV 
 %nonassoc  T_S_EQ
 //%left T_S_PLUS T_S_MINUS 
 //%left T_S_MULT T_ S_DIV
@@ -115,6 +116,8 @@ import_stmt:
 ;*/
 class_def:
 modifier Class_head
+
+
 ;
 Class_head:
 T_CLASS T_ID T_OParen main_stmt T_CParen   {display();}
@@ -130,6 +133,7 @@ modifier modifier modifier  T_MAIN '(' T_STRING '[' ']' T_ARGS ')' T_OParen stmt
 stmts:
  stmts stmt {$$=new_node("MStmts",$1,$2);}
  | stmt {$$=$1;}
+ 
  ;
  
 stmt:
@@ -157,16 +161,21 @@ stmt:
   | var_decl
   | cond_stmts
   | iter_stmts
+  
   ;
 
 cond_stmts:
-  T_IF '(' cond ')' {printf("t%d=not %s\n",tempno,$3->tmp);printf("if t%d goto L%d\n",tempno,label);} T_OParen stmts T_CParen { 
+  T_IF '(' cond ')' {printf("t%d=not %s\n",tempno,$3->tmp);printf("if t%d goto L%d\n",tempno,label++);} T_OParen stmts T_CParen { 
 						$$=new_node("if",$3,$7);
-						printf("L%d: ",label++);
+						printf("L%d: ",--label);
 						
-					    }  
-//  | T_IF '(' cond ')' T_OParen stmts T_CParen T_ELSE T_OParen stmts T_CParen
-;
+					    }
+   
+    
+						
+  | T_IF '(' cond ')'{printf("t%d=not %s\n",tempno,$3->tmp);printf("if t%d goto L%d\n",tempno,label++);}T_OParen stmts T_CParen {$$=new_node("if",$3,$7);printf("L%d: ",--label);} T_ELSE T_OParen stmts T_CParen
+						
+  ;
 
 
 iter_stmts:
@@ -176,8 +185,9 @@ iter_stmts:
 															      }
   |T_FOR '(' var_decl cond ';' T_ID T_ASSG T_expr ')' {printf("t%d=not %s\n",tempno,$4->tmp); 
 							b_lbl=label;
-							printf("if t%d goto L%d\n",tempno,label+1);
-							printf("L%d : ",label++);}    T_OParen stmts T_CParen { $$=new_node("for",$4,$12);
+							printf("L%d : ",label++);
+							printf("if t%d goto L%d\n",tempno,label);
+							}    T_OParen stmts T_CParen { $$=new_node("for",$4,$12);
 														printf("goto L%d\n",b_lbl);
 														printf("L%d : ",label++);
 													      }
@@ -339,7 +349,7 @@ T_NUM {union leafval f;f.val2=$1; $$=leaf(0,f,1);}
 			$$->value=t->value.val;
 		 }
 	}
-|  T_CHARV  {union leafval f;strcmp(f.val3,$1); $$=leaf(0,f,0); }
+|  T_CHARV  {union leafval f;strcpy(f.val3,$1); $$=leaf(0,f,0); }
 ;
 
 cond:
@@ -493,8 +503,12 @@ var_decl:
 */
 var_decl:
 	//T_INT T_ID ';' { fill($2,0,0);}
-	type_specifier T_ID T_ASSG T_expr ';' {  if($4->type==0)
-							printf("%s=%d\n",$2,(int)$4->value);	
+	type_specifier T_ID T_ASSG T_expr ';' {  if($4->type==0 && $4->a==0 && $1=="char")
+							printf("%s=%s\n",$2,$4->str_value);							 							
+						 else if($4->type==0 && $4->a==1 && $1=="integer")
+							printf("%s=%d\n",$2,(int)$4->value);
+						 else if($4->type==0 && $4->a==1 && $1=="float")
+							printf("%s=%f\n",$2,$4->value);	
 						else if($4->type==1)					
 							printf("%s=%s\n",$2,$4->tmp);
 						if(strcmp($1,"integer")==0)
@@ -502,9 +516,10 @@ var_decl:
 						if(strcmp($1,"float")==0)
 							fill($2,$4->value,1,$1);
 						if(strcmp($1,"char")==0)
-							{char* b=$4->str_value;
-							fill_char($2,b,2);
-							}
+							 {
+							  char *b=$4->str_value;
+							  fill_char($2,b,2);
+							   }	
 						union leafval f;
 						strcpy(f.val1,$2); 					
 						$$=new_node("EQUALS",leaf(2,f,1),$4);				
@@ -569,6 +584,7 @@ int  fill(char* name,float value,int type,char* type1){
   newnode->scope=n.s;
   newnode->l=yylineno;
   
+  
   if(strcmp(type1,"integer")==0)//Integer
   	newnode->value.val=(int)value;
 	
@@ -599,6 +615,7 @@ int  fill_char(char* name,char* value,int type){
   newnode->type=type;
   newnode->scope=n.s;
   newnode->l=yylineno;
+  
   //if(type==0)
   //{ strcpy(newnode->value.vale,value);
   //}
@@ -643,7 +660,7 @@ d_list* lookupsymb(char *id){
     printf("Variable Not declared at line %d\n",yylineno);
     yyerror("");
     return NULL;
-    exit(1);
+    //exit(1);
 
   }
   while(node!=NULL){
@@ -657,7 +674,7 @@ d_list* lookupsymb(char *id){
     printf("Variable Not declared at line %d\n",yylineno);
     yyerror("");
     return NULL;
-    exit(1);
+    //exit(1);
   }  
 }
 
@@ -681,16 +698,19 @@ node* leaf(int type,union leafval f,int a)
     {
 	tmp->value=f.val2;
     	tmp->type=0;//leaf nodes
+	tmp->a=a;
     }
     if(type==0 && a==0)
     {
 	tmp->str_value=f.val3;
     	tmp->type=0;//leaf nodes
+	tmp->a=a;
     }
     if(type==2)
     {
        	tmp->ptr=lookupsymb(f.val1);
     	tmp->type=2;//leaf variable
+	tmp->a=a;
     }
 
     return tmp;

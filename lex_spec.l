@@ -59,5 +59,6 @@ Equality {return T_S_EQ;}
 
 ({alpha}|{und})({alpha}|{und}|{digit})*	{yylval.string=strdup(yytext); return T_ID ;}
 \'{alpha}\' {yylval.string=strdup(yytext); return T_CHARV;}
+
 .    {return yytext[0];}
 %%

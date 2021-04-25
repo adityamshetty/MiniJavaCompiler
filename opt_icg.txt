@@ -1,19 +1,19 @@
 a=1
-t0=12*4
+t0=48
 t1=t0/2
 t2=t1+1
 b=t2
 c=10
 d=0
 i=0
-t3=i<5
-t4=i+1
+t3=1
+t4=1
 t5=not t3
 if t5 goto L1
 L0 : e=2
-a=i
+a=0
 goto L0
-L1 : 
+L1 :
 LINE NUMBER  VARIABLE NAME 	   TYPE 	 STORAGE 	 VALUE 	 SCOPE
 11            e           	   int 		  4		  2 	 3
 10            i           	   int 		  4		  0 	 2
